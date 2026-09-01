@@ -4,8 +4,8 @@ Punctuality history for Swedish trains, built from Trafikverket `TrainAnnounceme
 
 ## What is implemented
 
-- raw JSON landing before parsing
-- idempotent natural-key upserts guarded by `ModifiedTime`
+- one replayable raw JSON landing record per Trafikverket response, written before parsing
+- deduplicated, batched natural-key upserts guarded by `ModifiedTime`
 - cursor/high-water mark, run log, and dead-letter queue
 - the same `ingest(windowStart, windowEnd)` path for polling and backfill
 - retry with exponential backoff and jitter
@@ -86,3 +86,5 @@ Use these start commands:
 Add the same `DATABASE_URL` to both services. Add `TRAFIKVERKET_API_KEY` and `TRAFIKVERKET_SCHEMA_VERSION=1.9` to the worker. Railway supplies `PORT` to the API automatically, so do not hard-code it.
 
 Configure `/health` as the API healthcheck path. Use restart-on-failure for the API and always-restart for the worker. Do not run database migration as a Railway pre-deploy command: migrations are currently manual and the initial schema has already been applied.
+
+Start production polling conservatively with `POLL_INTERVAL_MS=3600000` (one hour). After several fast, clean runs, lower it gradually. Each source response is stored once in `raw_announcements`, malformed announcements go to `dead_letters`, and valid announcements are deduplicated and upserted in batches of 500.
