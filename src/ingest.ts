@@ -99,7 +99,7 @@ export async function ingest(windowStart: Date, windowEnd: Date, location?: stri
     // One replayable landing record per source response, committed before parsing.
     const rawId = (await pool.query(
       'INSERT INTO raw_announcements(window_start,window_end,payload) VALUES($1,$2,$3) RETURNING id',
-      [windowStart, windowEnd, rows]
+      [windowStart, windowEnd, JSON.stringify(rows)]
     )).rows[0].id as string;
 
     const newestByNaturalKey = new Map<string, NormalizedAnnouncement>();
