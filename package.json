@@ -2,7 +2,9 @@
   "name": "pendelkollen",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22 <25" },
+  "engines": {
+    "node": ">=22 <25"
+  },
   "scripts": {
     "build": "tsc",
     "start:api": "node dist/src/api.js",
@@ -13,7 +15,8 @@
     "reality-check": "tsx src/reality-check.ts",
     "db:migrate": "tsx src/migrate.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "npm run start:api"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.1",
