@@ -104,6 +104,21 @@ export async function ingest(windowStart: Date, windowEnd: Date, location?: stri
 
     const newestByNaturalKey = new Map<string, NormalizedAnnouncement>();
     for (const payload of rows) {
+    // Ignore non-advertised operational movements without a train identity.
+    // They remain available in the raw landing record.
+    if (
+      typeof payload === 'object' &&
+      payload !== null &&
+      'Advertised' in payload &&
+      payload.Advertised === false &&
+      (
+        !('AdvertisedTrainIdent' in payload) ||
+        payload.AdvertisedTrainIdent == null
+      )
+    ) {
+      continue;
+    }
+
       const parsed = announcementSchema.safeParse(payload);
       if (!parsed.success) {
         dead++;
