@@ -65,3 +65,24 @@ The natural key is `(advertised_train_ident, location_signature, advertised_time
 - `web/`: intentionally deferred until real data has accumulated; the API is ready for a Next.js frontend
 
 The frontend is deliberately not fabricated before a live sample has validated the semantics.
+
+## Railway deployment
+
+Create two Railway services from the same GitHub repository. Keep the repository root as the root directory for both.
+
+Shared build command:
+
+```text
+npm run build
+```
+
+Use these start commands:
+
+| Service | Start command | Public domain |
+| --- | --- | --- |
+| `train-api` | `npm run start:api` | Yes |
+| `train-worker` | `npm run start:worker` | No |
+
+Add the same `DATABASE_URL` to both services. Add `TRAFIKVERKET_API_KEY` and `TRAFIKVERKET_SCHEMA_VERSION=1.9` to the worker. Railway supplies `PORT` to the API automatically, so do not hard-code it.
+
+Configure `/health` as the API healthcheck path. Use restart-on-failure for the API and always-restart for the worker. Do not run database migration as a Railway pre-deploy command: migrations are currently manual and the initial schema has already been applied.

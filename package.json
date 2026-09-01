@@ -2,7 +2,11 @@
   "name": "pendelkollen",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22 <25" },
   "scripts": {
+    "build": "tsc",
+    "start:api": "node dist/src/api.js",
+    "start:worker": "node dist/src/worker.js",
     "api": "tsx src/api.ts",
     "worker": "tsx src/worker.ts",
     "backfill": "tsx src/backfill.ts",
