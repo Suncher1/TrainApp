@@ -3,6 +3,9 @@ import { announcementSchema, type Announcement } from './model.js';
 import { fetchAnnouncements } from './trafikverket.js';
 
 const BATCH_SIZE = 500;
+const STORED_LOCATIONS = new Set(['THN', 'G']);
+const RAW_RETENTION_DAYS = 2;
+const ANNOUNCEMENT_RETENTION_DAYS = 400;
 
 type NormalizedAnnouncement = {
   advertised_train_ident: string;
@@ -85,6 +88,20 @@ async function upsertBatch(batch: NormalizedAnnouncement[]) {
   return result.rowCount ?? 0;
 }
 
+async function removeExpiredData() {
+  await pool.query(
+    `DELETE FROM raw_announcements
+     WHERE fetched_at < now() - ($1 * interval '1 day')`,
+    [RAW_RETENTION_DAYS]
+  );
+
+  await pool.query(
+    `DELETE FROM announcements
+     WHERE advertised_time_at_location < now() - ($1 * interval '1 day')`,
+    [ANNOUNCEMENT_RETENTION_DAYS]
+  );
+}
+
 export async function ingest(windowStart: Date, windowEnd: Date, location?: string) {
   const run = (await pool.query(
     'INSERT INTO ingest_runs(window_start,window_end) VALUES($1,$2) RETURNING id',
@@ -104,20 +121,29 @@ export async function ingest(windowStart: Date, windowEnd: Date, location?: stri
 
     const newestByNaturalKey = new Map<string, NormalizedAnnouncement>();
     for (const payload of rows) {
-    // Ignore non-advertised operational movements without a train identity.
-    // They remain available in the raw landing record.
-    if (
-      typeof payload === 'object' &&
-      payload !== null &&
-      'Advertised' in payload &&
-      payload.Advertised === false &&
-      (
-        !('AdvertisedTrainIdent' in payload) ||
-        payload.AdvertisedTrainIdent == null
-      )
-    ) {
-      continue;
-    }
+      // Retain normalized history only for the selected stations.
+      if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        !('LocationSignature' in payload) ||
+        typeof payload.LocationSignature !== 'string' ||
+        !STORED_LOCATIONS.has(payload.LocationSignature)
+      ) {
+        continue;
+      }
+
+      // Ignore non-advertised operational movements without a train identity.
+      // They remain available in the raw landing record.
+      if (
+        'Advertised' in payload &&
+        payload.Advertised === false &&
+        (
+          !('AdvertisedTrainIdent' in payload) ||
+          payload.AdvertisedTrainIdent == null
+        )
+      ) {
+        continue;
+      }
 
       const parsed = announcementSchema.safeParse(payload);
       if (!parsed.success) {
@@ -153,6 +179,9 @@ export async function ingest(windowStart: Date, windowEnd: Date, location?: stri
         high_water_mark=GREATEST(ingest_cursors.high_water_mark,EXCLUDED.high_water_mark),
         updated_at=now()
     `, [windowEnd]);
+
+    await removeExpiredData();
+
     await pool.query(
       'UPDATE ingest_runs SET finished_at=now(),rows_fetched=$2,rows_upserted=$3,rows_dead_lettered=$4 WHERE id=$1',
       [run, fetched, upserted, dead]
@@ -166,4 +195,3 @@ export async function ingest(windowStart: Date, windowEnd: Date, location?: stri
     throw error;
   }
 }
-
