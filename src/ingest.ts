@@ -3,7 +3,7 @@ import { announcementSchema, type Announcement } from './model.js';
 import { fetchAnnouncements } from './trafikverket.js';
 
 const BATCH_SIZE = 500;
-const STORED_LOCATIONS = new Set(['THN', 'G']);
+const STORED_LOCATIONS = new Set(['Thn', 'G']);
 const RAW_RETENTION_DAYS = 2;
 const ANNOUNCEMENT_RETENTION_DAYS = 400;
 
